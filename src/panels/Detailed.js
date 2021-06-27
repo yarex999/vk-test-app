@@ -1,4 +1,5 @@
 import React, {useState, useEffect} from 'react';
+import bridge from '@vkontakte/vk-bridge';
 import {Icon28AddOutline} from '@vkontakte/icons'
 import { Panel, PanelHeader, PanelHeaderBack,Group, Gradient, Title, Avatar, InfoRow, Header,SimpleCell, CellButton, Textarea, FormItem, Button, Cell,MiniInfoCell } from '@vkontakte/vkui';
 
@@ -10,51 +11,94 @@ const Detailed = props => {
     const [userInfo, setUserInfo] = useState(null);
     const [addNote, setAddNote] = useState(false);
     const [notes, setNotes] = useState(null);
+    const [noteStorage, setNoteStorage] = useState([]);
 
-    let user;
     let month = ['January', "February", 'March', 'April', 'May', 'June', 'July', 'August', 'September','Oktober', 'November', 'December'];
 
+    // to recieve user info 
     useEffect(()=>{
         setUserInfo( i => props.userFriends.response.items[props.whichUser])
-    
-      
+        
     },[props])
 
+    // to update user info
+    useEffect(()=>{
+        if(userInfo){
+            updateStorage();
+        }
+    },[userInfo])
+
+    // to convert b-date
     function getDate(str){
         let result = str.match(/\d+/g);
         result[1] = month[result[1]-1];
        return result.join(' ');
     }
 
+    // to store recieved note before adding to page
     function writeANote(e){
         setNotes(n=> e.target.value);
     }
 
-    function addNoteStorage(){
-        props.setStorage(props.storage.map((el,index) =>{
-            if(el.id === userInfo.domain && notes){
-               return  {...props.storage[index], id: userInfo.domain, note:[...el.note, notes]};
-            } else {
-                return el
-            }
-        }))
+    // add a note to local storage and to the page
+    async function addNoteStorage(){
+        
+        let storageReq = await getStorage(userInfo.domain);
+        let storage = storageReq.keys[0].value? storageReq.keys[0].value : "[]";
+        let newStorage = await JSON.parse(storage);
+        console.log(newStorage)
+        setStorage(userInfo.domain,JSON.stringify([...newStorage, notes]))
+        .then(result => updateStorage())
+    
         setNotes(n => '')
         setAddNote( n => !n)
     }
 
-    function deleteNote(indexU, indexN){
-        if(props.storage[indexU].note.length){
-          props.setStorage(props.storage.map((el,index) =>{
-            if(index === indexU){
-               return  {...props.storage[index], id: userInfo.domain, note:[...el.note.slice(0,indexN),...el.note.slice(indexN+1)]};
-            } else {
-                return el
-            }
-        }))  
-        }
+    // add the note to VK Bridge Storage
+    async function setStorage(noteKey, noteValue){
+		const storageSet = await bridge.send('VKWebAppStorageSet', {
+			key: noteKey ,
+			value: noteValue
+		});
+		console.log('from storageSet', storageSet)
+	}
+
+    // to get notes from BK Bridge Storage
+	async function getStorage(noteKey){
+		const storageGet = await bridge.send('VKWebAppStorageGet', {
+			keys: [noteKey],
+		})
+        console.log('from storageGet',storageGet)
+		return storageGet;
+	}
+
+    
+    // to delete the note from VK Bridge Storage and page
+    async function deleteNote(indexN){
+  
+        let storageReq = await getStorage(userInfo.domain);
+        let storage =  storageReq.keys[0].value? storageReq.keys[0].value : "[]";
+        let newStorage = await JSON.parse(storage);
+        console.log(newStorage)
+        setStorage(userInfo.domain,JSON.stringify([...newStorage.slice(0, indexN), ...newStorage.slice(indexN+1)]))
+        .then(result => updateStorage())
+   
     }
+
+    // to update internal React State to re-render notes on this page
+    async function updateStorage(){
+        let storageReq = await getStorage(userInfo.domain);
+        let storage = storageReq.keys[0].value? storageReq.keys[0].value : "[]";
+        let newStorage = await JSON.parse(storage);
+        setNoteStorage(newStorage)
+        
+    }
+
+// just for checking purposes
+console.log('noteStorage:',noteStorage)
 console.log(notes)
 userInfo?     console.log('detailed', props.storage): '';
+
     return (
       <Panel id={props.id}>
 		<PanelHeader
@@ -62,7 +106,7 @@ userInfo?     console.log('detailed', props.storage): '';
 		>
 			back to the list {console.log(userInfo)}
 		</PanelHeader>
-        { userInfo? user = (
+        { userInfo? 
     <Group>
         <Gradient style={{
             margin: 0,
@@ -118,13 +162,13 @@ userInfo?     console.log('detailed', props.storage): '';
                </Group> : '' }
           {addNote? <Button style={{marginLeft: '15px'}} onClick={()=>addNoteStorage()} mode={notes? 'commerce': 'destructive'}>{notes? 'save' : 'close'}</Button> :<CellButton onClick={()=>setAddNote( n => !n)} before={<Icon28AddOutline />}>Добавить заметку</CellButton>}
 
-          {props.storage[props.whichUser].note.length?
+          {noteStorage.length?
           <Group>
           <Header mode="secondary">Заметки о пользователе</Header>
           <SimpleCell>
     
-               {props.storage[props.whichUser].note.map((el,index) =>{
-                  return <MiniInfoCell textWrap="full">{`Note ${index+1}: ${el}`}<Button style={{marginLeft: '15px'}} onClick={()=>deleteNote(props.whichUser, index)} mode="destructive">delete</Button></MiniInfoCell>
+               {noteStorage.map((el,index) =>{
+                  return <MiniInfoCell textWrap="full">{`Note ${index+1}: ${el}`}<Button style={{marginLeft: '15px'}} onClick={()=>deleteNote(index)} mode="destructive">delete</Button></MiniInfoCell>
               })} 
               
           </SimpleCell>
@@ -133,7 +177,7 @@ userInfo?     console.log('detailed', props.storage): '';
           
         </Group>
         
-         ): ''}
+         : ''}
         
 	
 	</Panel>  

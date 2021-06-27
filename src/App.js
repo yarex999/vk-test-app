@@ -6,9 +6,7 @@ import '@vkontakte/vkui/dist/vkui.css';
 import Home from './panels/Home';
 import Detailed from './panels/Detailed';
 
-const STORAGE_TEST = {
-	STATUS: 'online'
-}
+
 
 
 
@@ -17,10 +15,14 @@ const App = () => {
 	const [fetchedUser, setUser] = useState(null);
 	const [userFriends, setUsersFriends] = useState(null);
 	const [detailedUser, setDetailedUser] = useState(null);
-	const [noteStorage, setNoteStorage] = useState({})
 	const [popout, setPopout] = useState(<ScreenSpinner size='large' />);
 
+
+
+
 	useEffect(() => {
+		
+		// to install the right theme on a device
 		bridge.subscribe(({ detail: { type, data }}) => {
 			if (type === 'VKWebAppUpdateConfig') {
 				const schemeAttribute = document.createAttribute('scheme');
@@ -29,13 +31,19 @@ const App = () => {
 			}
 		});
 
+		// get user data and necessary permissons
 		async function fetchData() {
+			
+			// main info
 			const user = await bridge.send('VKWebAppGetUserInfo');
+
+			// permission to get info about user`s friends
 			const userFriendsToken = await bridge.send('VKWebAppGetAuthToken', {
 				app_id: 7888409,
 				scope: "friends"
 			});
 			
+			// get info about user`s friends
 			const friends = await bridge.send("VKWebAppCallAPIMethod", {
 				method: "friends.get",
 				request_id:7888409,
@@ -46,17 +54,6 @@ const App = () => {
 					"fields": " nickname, domain, sex, bdate, city, country, timezone, photo_50, photo_100, photo_200_orig, has_mobile, contacts, education, online, relation, last_seen, status, can_write_private_message, can_see_all_posts, can_post, universities"
 				}
 			})
-			const storage = await bridge.send('VKWebAppStorageSet', {
-				key: STORAGE_TEST.STATUS ,
-				value: JSON.stringify({online: true})
-				
-			});
-			console.log(storage)
-			const storageGet = await bridge.send('VKWebAppStorageGet', {
-				keys: Object.values(STORAGE_TEST),
-			})
-			console.log(JSON.parse(storageGet.keys[0].value))
-
 
 	        setUser(user);
 	        setUsersFriends(friends);
@@ -66,31 +63,20 @@ const App = () => {
 		fetchData() 
 	}, []);
 
-	useEffect(()=>{
-		if(userFriends){
-			let friendsArr = userFriends.response.items;
-			console.log('friends', friendsArr)
-			setNoteStorage(n=> friendsArr.map(el=>{
-				return {...n, id: el.domain, note: []}
-			}))
-		}
+	
 
-	},[userFriends])
-
-
-console.log('storage',noteStorage)
+// to switch between pages
 	const go = e => {
 		setActivePanel(e.currentTarget.dataset.to);
 	};
-	console.log(userFriends)
-	console.log('user is', detailedUser)
+
 
 	return (
 		<AdaptivityProvider>
 			<AppRoot>
 				<View activePanel={activePanel} popout={popout}>
 					<Home id='home' fetchedUser={fetchedUser} chooseUser={setDetailedUser} userFriends={userFriends} go={go} />
-					<Detailed id='detailed' storage={noteStorage} setStorage={setNoteStorage}whichUser={detailedUser} userFriends={userFriends}  go={go} />
+					<Detailed id='detailed' whichUser={detailedUser} userFriends={userFriends}  go={go}/>
 				</View>
 			</AppRoot>
 		</AdaptivityProvider>

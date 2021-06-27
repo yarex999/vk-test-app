@@ -1,13 +1,14 @@
 {
   "name": "test-app",
   "version": "1.0.0",
+  "homepage": "https://yarex999.github.io/vk-test-app/",
   "description": "",
   "main": "index.js",
   "scripts": {
     "start": "cross-env PORT=10888 HTTPS=true react-scripts start",
     "build": "react-scripts build",
     "predeploy": "npm run build",
-    "deploy": "vk-miniapps-deploy"
+    "deploy": "gh-pages -d build"
   },
   "keywords": [],
   "author": "",

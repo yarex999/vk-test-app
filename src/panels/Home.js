@@ -1,16 +1,36 @@
 import React, { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 
-import { Panel, PanelHeader, Header, Button, Group, Cell, SimpleCell, Div, Avatar, List } from '@vkontakte/vkui';
+import { Panel, PanelHeader, Header, Button, Group, Cell, SimpleCell, Div, Avatar, List,Search } from '@vkontakte/vkui';
 
 const Home = ({ id, go, fetchedUser, userFriends, chooseUser }) => {
-	
+	const [search, setSearch] = useState('');
+	const [friendList, setFriendList] = useState('')
+
+	// go to Detailed page
 	function getDetailedInfo(i,e){
 		chooseUser(u=> i)
 		go(e);
-		
 
 	}
+
+	// receive info about users friends
+	useEffect(()=>{
+		if(userFriends)setFriendList(userFriends.response.items)
+	},[userFriends])
+
+	// for searching friends
+	function findFriends(e){
+		setSearch(s => e.target.value);
+		console.log(search)
+	}
+	useEffect(()=>{
+		if(search ){
+		setFriendList(f => f.filter(el => el.first_name.toLowerCase().startsWith(search.toLowerCase()) || el.last_name.toLowerCase().startsWith(search.toLowerCase())))	
+		}else if(!search && userFriends) {
+			setFriendList( f => userFriends? userFriends.response.items: friendList)
+		}
+	},[search])
 	
 	return (
 		<Panel id={id}>
@@ -26,8 +46,9 @@ const Home = ({ id, go, fetchedUser, userFriends, chooseUser }) => {
 		</Group>}
 
 		<Group header={<Header mode="secondary">My friends</Header>}>
+			<Search value={search} onChange={(event)=>findFriends(event)} />
 			<List>
-				{ userFriends ? userFriends.response.items.map((el,index) => {
+				{ friendList ? friendList.map((el,index) => {
 			return (
 				<SimpleCell 
 				   onClick={(event)=>getDetailedInfo(index,event)}
